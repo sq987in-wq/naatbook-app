@@ -1,0 +1,44 @@
+name: Build Android APK From Zip
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Extract Project Zip
+      run: |
+        unzip naatbook.zip -d .
+        if [ -d "naatbook" ]; then
+          mv naatbook/* . 2>/dev/null || true
+          mv naatbook/.* . 2>/dev/null || true
+        fi
+
+    - name: Generate Missing Gradle Wrapper
+      run: |
+        gradle wrapper --gradle-version 9.3.1
+        chmod +x gradlew
+
+    - name: Generate Debug Keystore
+      run: |
+        keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname 'CN=Android Debug,O=Android,C=US'
+
+    - name: Build Debug APK
+      run: ./gradlew assembleDebug
+
+    - name: Upload APK to Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: Naatbook-Debug-APK
+        path: "**/build/outputs/apk/debug/*.apk"
